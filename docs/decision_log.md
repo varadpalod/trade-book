@@ -1,0 +1,1 @@
+Decision 001: When total shares are not perfectly divisible by the number of intervals, distribute the remainder across the earliest intervals to ensure all shares are scheduled.
