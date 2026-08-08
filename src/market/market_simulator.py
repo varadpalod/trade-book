@@ -5,6 +5,7 @@ from .enums import OrderSide
 from .order import Order
 from .order_book import LimitOrderBook
 from .trade import Trade
+from src.execution.execution_report import ExecutionReport
 
 class MarketSimulator:
     def __init__(self,initial_price:float=100.0,volatility:float=0.5,max_quantity:int=100,price_range:float=2.0,):
@@ -64,3 +65,44 @@ class MarketSimulator:
             "volume": self.total_volume,
             "mid_price": self.mid_price,
         }
+
+    def submit_strategy_order(self,order:Order)->list[Trade]:
+        return self.submit_order(order)
+
+    def run_with_strategy(self,strategy,steps:int):
+        for _ in range(steps):
+            self.simulate_step()
+            order=strategy.next_order()
+            if order is not None:
+                trades=self.submit_order(order)
+
+                self.total_orders+=1
+                self.total_trades+=len(trades)
+                for trade in trades:
+                    self.total_volume+=trade.quantity
+
+    def generate_execution_report(self,target_quantity: int,arrival_price: float,) -> ExecutionReport:
+        executed_quantity = sum(trade.quantity for trade in self.trade_history)
+
+        if executed_quantity > 0:
+            average_price = (sum(trade.price * trade.quantity for trade in self.trade_history)
+                / executed_quantity
+        )   
+        else:
+            average_price = 0.0
+
+        remaining_quantity = max(0,target_quantity - executed_quantity,)
+
+        implementation_shortfall = (
+        (average_price - arrival_price)* executed_quantity
+        if executed_quantity > 0
+        else 0.0
+    )
+
+        return ExecutionReport(
+            total_quantity=target_quantity,
+            executed_quantity=executed_quantity,
+            remaining_quantity=remaining_quantity,
+            average_execution_price=average_price,
+            implementation_shortfall=implementation_shortfall,
+    )
