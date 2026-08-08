@@ -104,3 +104,22 @@ def test_custom_market_parameters():
     assert simulator.volatility == 1.0
     assert simulator.max_quantity == 500
     assert simulator.price_range == 5
+
+def test_run_simulation():
+    simulator = MarketSimulator()
+
+    simulator.run(50)
+
+    assert simulator.total_orders == 50
+    
+def test_simulation_summary():
+    simulator = MarketSimulator()
+
+    simulator.run(10)
+
+    summary = simulator.simulation_summary()
+
+    assert summary["orders"] == 10
+    assert summary["trades"] >= 0
+    assert summary["volume"] >= 0
+    assert summary["mid_price"] > 0

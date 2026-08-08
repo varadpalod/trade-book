@@ -16,6 +16,10 @@ class MarketSimulator:
         self.max_quantity=max_quantity
         self.price_range=price_range
 
+        self.total_orders=0
+        self.total_volume=0
+        self.total_trades=0
+
     def submit_order(self,order:Order)->list[Trade]:
         return self.engine.process_order(order)
 
@@ -31,9 +35,17 @@ class MarketSimulator:
         self.order_id += 1
         return order
 
-    def simulate_step(self):
+    def simulate_step(self)->list[Trade]:
         self.update_mid_price()
         order = self.generate_random_order()
+        trades=self.submit_order(order)
+
+        self.total_orders+=1
+        self.total_trades+=len(trades)
+
+        for trade in trades:
+            self.total_volume+=trade.quantity
+
         return self.submit_order(order)
 
     def update_mid_price(self):
@@ -41,4 +53,14 @@ class MarketSimulator:
 
         self.mid_price=round(max(1,self.mid_price+change),2,)
 
-    
+    def run(self,steps:int):
+        for _ in range(steps):
+            self.simulate_step()
+
+    def simulation_summary(self) -> dict:
+        return {
+            "orders": self.total_orders,
+            "trades": self.total_trades,
+            "volume": self.total_volume,
+            "mid_price": self.mid_price,
+        }
