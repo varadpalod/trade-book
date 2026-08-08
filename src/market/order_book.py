@@ -47,7 +47,7 @@ class LimitOrderBook:
         if not self.bids:
             return None
 
-        return max(self.bids, key=lambda order: order.price)
+        return max(self.bids, key=lambda order: (order.price,-order.timestamp.timestamp()),default=None,)
 
     def best_ask(self) -> Order | None:
         """
@@ -57,7 +57,7 @@ class LimitOrderBook:
         if not self.asks:
             return None
 
-        return min(self.asks, key=lambda order: order.price)
+        return min(self.asks, key=lambda order: (order.price,order.timestamp),default=None,)
 
     def spread(self) -> float | None:
         """

@@ -175,3 +175,40 @@ def test_buy_matches_multiple_sell_orders():
     assert trades[2].price == 102
 
     assert book.total_depth() == 0
+
+def test_fifo_same_ask_price():
+    book = LimitOrderBook()
+    engine = MatchingEngine(book)
+
+    first = Order(1, OrderSide.SELL, 100, 20, datetime(2024, 1, 1, 10, 0))
+    second = Order(2, OrderSide.SELL, 100, 20, datetime(2024, 1, 1, 10, 1))
+
+    engine.process_order(first)
+    engine.process_order(second)
+
+    trades = engine.process_order(
+        Order(3, OrderSide.BUY, 100, 20, datetime.now())
+    )
+
+    assert trades[0].sell_order_id == 1
+    assert book.ask_depth() == 1
+    assert book.best_ask().order_id == 2
+    
+
+def test_fifo_same_bid_price():
+    book = LimitOrderBook()
+    engine = MatchingEngine(book)
+
+    first = Order(1, OrderSide.BUY, 100, 20, datetime(2024, 1, 1, 10, 0))
+    second = Order(2, OrderSide.BUY, 100, 20, datetime(2024, 1, 1, 10, 1))
+
+    engine.process_order(first)
+    engine.process_order(second)
+
+    trades = engine.process_order(
+        Order(3, OrderSide.SELL, 100, 20, datetime.now())
+    )
+
+    assert trades[0].buy_order_id == 1
+    assert book.bid_depth() == 1
+    assert book.best_bid().order_id == 2
