@@ -217,3 +217,155 @@ def test_execution_report_after_trade():
     assert report.remaining_quantity == 80
     assert report.average_execution_price == 101
     assert report.implementation_shortfall == 20
+
+def test_transaction_cost_zero():
+    simulator = MarketSimulator()
+
+    report = simulator.generate_execution_report(
+        target_quantity=100,
+        arrival_price=100,
+    )
+
+    assert report.transaction_cost == 0
+
+def test_transaction_cost():
+    simulator = MarketSimulator()
+
+    simulator.trade_history.append(
+        Trade(
+            buy_order_id=1,
+            sell_order_id=2,
+            price=100,
+            quantity=20,
+            timestamp=datetime.now(),
+        )
+    )
+
+    report = simulator.generate_execution_report(
+        target_quantity=20,
+        arrival_price=100,
+        fee_rate=0.001,
+    )
+
+    assert report.transaction_cost == 2.0
+
+def test_market_impact_zero():
+    simulator = MarketSimulator()
+
+    simulator.trade_history.append(
+        Trade(
+            buy_order_id=1,
+            sell_order_id=2,
+            price=100,
+            quantity=10,
+            timestamp=datetime.now(),
+        )
+    )
+
+    report = simulator.generate_execution_report(
+        target_quantity=10,
+        arrival_price=100,
+    )
+
+    assert report.market_impact == 0
+
+def test_market_impact_positive():
+    simulator = MarketSimulator()
+
+    simulator.trade_history.append(
+        Trade(
+            buy_order_id=1,
+            sell_order_id=2,
+            price=105,
+            quantity=10,
+            timestamp=datetime.now(),
+        )
+    )
+
+    report = simulator.generate_execution_report(
+        target_quantity=10,
+        arrival_price=100,
+    )
+
+    assert report.market_impact == 5
+
+def test_total_traded_volume():
+    simulator = MarketSimulator()
+
+    simulator.trade_history.extend([
+        Trade(1, 2, 100, 10, datetime.now()),
+        Trade(3, 4, 101, 20, datetime.now()),
+    ])
+
+    assert simulator.total_traded_volume() == 30
+
+def test_total_traded_value():
+    simulator = MarketSimulator()
+
+    simulator.trade_history.extend([
+        Trade(1, 2, 100, 10, datetime.now()),
+        Trade(3, 4, 101, 20, datetime.now()),
+    ])
+
+    assert simulator.total_traded_value() == 3020
+
+def test_average_trade_size():
+    simulator = MarketSimulator()
+
+    simulator.trade_history.extend([
+        Trade(1, 2, 100, 10, datetime.now()),
+        Trade(3, 4, 101, 20, datetime.now()),
+    ])
+
+    assert simulator.average_trade_size() == 15
+
+def test_average_trade_size_empty():
+    simulator = MarketSimulator()
+
+    assert simulator.average_trade_size() == 0.0
+
+def test_trades_for_buy_order():
+    simulator = MarketSimulator()
+
+    simulator.trade_history.extend([
+        Trade(1, 2, 100, 10, datetime.now()),
+        Trade(1, 3, 101, 5, datetime.now()),
+        Trade(4, 5, 102, 8, datetime.now()),
+    ])
+
+    trades = simulator.trades_for_buy_order(1)
+
+    assert len(trades) == 2
+
+def test_trades_for_sell_order():
+    simulator = MarketSimulator()
+
+    simulator.trade_history.extend([
+        Trade(1, 2, 100, 10, datetime.now()),
+        Trade(3, 2, 101, 15, datetime.now()),
+        Trade(4, 5, 102, 8, datetime.now()),
+    ])
+
+    trades = simulator.trades_for_sell_order(2)
+
+    assert len(trades) == 2
+
+def test_executed_quantity_for_buy():
+    simulator = MarketSimulator()
+
+    simulator.trade_history.extend([
+        Trade(1, 2, 100, 10, datetime.now()),
+        Trade(1, 3, 101, 15, datetime.now()),
+    ])
+
+    assert simulator.executed_quantity_for_buy(1) == 25
+
+def test_executed_quantity_for_sell():
+    simulator = MarketSimulator()
+
+    simulator.trade_history.extend([
+        Trade(1, 2, 100, 10, datetime.now()),
+        Trade(3, 2, 101, 15, datetime.now()),
+    ])
+
+    assert simulator.executed_quantity_for_sell(2) == 25

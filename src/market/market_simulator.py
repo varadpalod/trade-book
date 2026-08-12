@@ -81,7 +81,7 @@ class MarketSimulator:
                 for trade in trades:
                     self.total_volume+=trade.quantity
 
-    def generate_execution_report(self,target_quantity: int,arrival_price: float,) -> ExecutionReport:
+    def generate_execution_report(self,target_quantity: int,arrival_price: float,fee_rate:float=0.001,) -> ExecutionReport:
         executed_quantity = sum(trade.quantity for trade in self.trade_history)
 
         if executed_quantity > 0:
@@ -98,6 +98,11 @@ class MarketSimulator:
         if executed_quantity > 0
         else 0.0
     )
+        traded_value=sum(trade.price*trade.quantity
+                         for trade in self.trade_history)
+        transaction_cost=traded_value*fee_rate
+
+        market_impact= average_price-arrival_price
 
         return ExecutionReport(
             total_quantity=target_quantity,
@@ -105,4 +110,32 @@ class MarketSimulator:
             remaining_quantity=remaining_quantity,
             average_execution_price=average_price,
             implementation_shortfall=implementation_shortfall,
+            transaction_cost=transaction_cost,
+            market_impact=market_impact,
     )
+
+    def total_traded_volume(self)-> int:
+        return sum (trade.quantity for trade in self.trade_history)
+
+    def total_traded_value(self)->float:
+        return sum (trade.price*trade.quantity for trade in self.trade_history)
+
+    def average_trade_size(self)->float:
+        if not self.trade_history:
+            return 0.0
+
+        return self.total_traded_volume()/len(self.trade_history)
+
+    def trades_for_buy_order(self,order_id:int)->list[Trade]:
+        return [trade for trade in self.trade_history 
+                if trade.buy_order_id==order_id]
+
+    def trades_for_sell_order(self,order_id:int)->list[Trade]:
+        return [trade for trade in self.trade_history
+                if trade.sell_order_id==order_id]
+
+    def executed_quantity_for_buy(self,order_id:int)->int:
+        return sum(trade.quantity for trade in self.trades_for_buy_order(order_id))
+
+    def executed_quantity_for_sell(self,order_id:int)->int:
+        return sum(trade.quantity for trade in self.trades_for_sell_order(order_id))
