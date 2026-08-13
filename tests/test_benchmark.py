@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from src.execution.benchmark import BenchmarkRunner
-from src.execution.execution_report import ExecutionReport
+from execution.execution_result import ExecutionReport
 from src.market.enums import OrderSide
 from src.market.order import Order
 from pathlib import Path

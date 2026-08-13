@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from .execution_report import ExecutionReport
-from src.market.market_simulator import MarketSimulator 
+from .execution_result import ExecutionReport
+from execution.market_simulator import MarketSimulator 
 import csv
 
 @dataclass
