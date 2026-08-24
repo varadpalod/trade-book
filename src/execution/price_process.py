@@ -4,7 +4,7 @@ class PriceProcess:
         self._rng=np.random.default_rng(random_seed)
 
     
-    def generate(self,initial_price:float,sigma:float,intervals:float,tau:float,)->list[float]:
+    def generate_path(self,initial_price:float,sigma:float,intervals:float,tau:float,)->list[float]:
         if initial_price <= 0:
             raise ValueError("Initial price must be positive.")
 
