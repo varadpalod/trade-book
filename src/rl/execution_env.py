@@ -55,6 +55,13 @@ class ExecutionEnv(gym.Env):
         implementation_shortfall=(self.arrival_price-execution_price)*shares_to_sell
         reward= -implementation_shortfall
 
+        print(f"Step {self.current_step}")
+        print(f"Current Price: {self.current_price:.2f}")
+        print(f"Shares Sold: {shares_to_sell}")
+        print(f"Execution Price: {execution_price:.2f}")
+        print(f"Implementation Shortfall: {implementation_shortfall:.4f}")
+        print(f"Reward: {reward:.4f}")
+        print("-" * 40) 
         self.current_step+=1
         if self.current_step<len(self.market_prices):
             self.current_price=self.market_prices[self.current_step]

@@ -5,7 +5,7 @@ from .discrete_optimizer import DiscreteOptimizer
 
 class AlmgrenChrissStrategy(ExecutionStrategy):
 
-    def __init__(self,lambda_risk: float = 2e-6,sigma: float = 0.95,eta: float = 2.5e-6,gamma: float = 2.5e-7,):
+    def __init__(self,lambda_risk: float = 2e-9,sigma: float = 0.95,eta: float = 2.5e-6,gamma: float = 2.5e-7,):
         if lambda_risk < 0:
             raise ValueError("lambda_risk cannot be negative.")
 

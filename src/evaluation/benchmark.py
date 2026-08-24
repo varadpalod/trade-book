@@ -4,7 +4,7 @@ from src.execution.almgren_chriss import AlmgrenChrissStrategy
 
 def evaluate_td3():
     env=ExecutionEnv()
-    model=TD3.load("td3_execution_agent")
+    model=TD3.load("td3_execution")
 
     obs,_=env.reset()
 
@@ -19,6 +19,9 @@ def evaluate_td3():
         total_reward+=reward
         done= terminated or truncated
 
+    print("TD3 Steps:", len(actions))
+    print("TD3 Actions:", actions)
+    print("TD3 Total Reward:", total_reward)
     return {
         "reward":total_reward,"actions":actions,"remaining_inventory":env.remaining_shares,
     }

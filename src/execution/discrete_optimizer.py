@@ -46,6 +46,7 @@ class DiscreteOptimizer:
         )
 
         def objective(schedule):
+
             return self._objective(
                 schedule=schedule.tolist(),
                 total_shares=total_shares,
@@ -119,4 +120,5 @@ class DiscreteOptimizer:
 
         expected = self._expected_cost(schedule, eta, gamma, tau)
         variance = self._variance_cost(inventory, sigma, tau)
+
         return expected+lambda_risk*variance
