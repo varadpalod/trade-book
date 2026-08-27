@@ -8,7 +8,7 @@ from src.execution.market_impact import MarketImpact
 class ExecutionEnv(gym.Env):
     metadata={"render_modes":[]}
 
-    def __init__(self,total_shares:int=1000,intervals:int=5,initial_price:float=100.0,execution_horizon:float=60.0,sigma:float=1.0,eta:float=2.5e-6,gamma:float=2.5e-7,random_seed:int=42):
+    def __init__(self,total_shares:int=1000,intervals:int=10,initial_price:float=100.0,execution_horizon:float=60.0,sigma:float=1.0,eta:float=2.5e-6,gamma:float=2.5e-7,random_seed:int=42):
         super().__init__()
         self.total_shares = total_shares
         self.remaining_shares = self.total_shares
@@ -51,27 +51,31 @@ class ExecutionEnv(gym.Env):
 
         tau=self.execution_horizon/self.intervals
         temporary_impact=self.market_impact.temporary_impact(trade_size=shares_to_sell,tau=tau)
-        execution_price=self.current_price-temporary_impact
+        permenant_impact=self.market_impact.permanent_impact(trade_size=shares_to_sell)
+        trade_price = self.current_price
+        execution_price=trade_price-(temporary_impact+permenant_impact)
         implementation_shortfall=(self.arrival_price-execution_price)*shares_to_sell
         reward= -implementation_shortfall
+        info={
+                "shares_sold": shares_to_sell,
+                "temporary_impact": temporary_impact,
+                "permanent_impact": permenant_impact,
+                "execution_price": execution_price,
+                "implementation_shortfall": implementation_shortfall,
+                "current_price": trade_price
+                }
 
-        print(f"Step {self.current_step}")
-        print(f"Current Price: {self.current_price:.2f}")
-        print(f"Shares Sold: {shares_to_sell}")
-        print(f"Execution Price: {execution_price:.2f}")
-        print(f"Implementation Shortfall: {implementation_shortfall:.4f}")
-        print(f"Reward: {reward:.4f}")
-        print("-" * 40) 
         self.current_step+=1
         if self.current_step<len(self.market_prices):
             self.current_price=self.market_prices[self.current_step]
         terminated=(self.current_step>=self.intervals or self.remaining_shares==0)
         truncated=False
-        info={}
+        
 
         if(self.current_step >= self.intervals and self.remaining_shares>0):
             temporary_impact=self.market_impact.temporary_impact(trade_size=self.remaining_shares,tau=tau)
-            execution_price=(self.current_price-temporary_impact)
+            permenant_impact=self.market_impact.permanent_impact(trade_size=self.remaining_shares)
+            execution_price=(self.current_price-temporary_impact-permenant_impact)
             reward-=(self.arrival_price-execution_price)*self.remaining_shares
             self.remaining_shares=0
 
@@ -84,7 +88,7 @@ class ExecutionEnv(gym.Env):
             self.current_step / self.intervals,
             self.remaining_shares / self.total_shares,
             self.current_price / self.initial_price,
-            self.intervals - self.current_step,
+            (self.intervals - self.current_step)/self.intervals,
         ],
         dtype=np.float32,
     )

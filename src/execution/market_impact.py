@@ -16,4 +16,9 @@ class MarketImpact:
         if(tau<=0):
             raise ValueError("tau cant be negative")
 
-        return self.eta*trade_size/tau
+        if trade_size <0:
+            raise ValueError("trade size cant be negative")
+
+        participation_rate=trade_size/tau
+
+        return self.eta*(participation_rate**2)
