@@ -26,13 +26,16 @@ class ExecutionEnv(gym.Env):
         self.price_process=PriceProcess(random_seed=random_seed)
         self.market_impact=MarketImpact(eta=self.eta,gamma=self.gamma,)
         self.action_space=spaces.Box(low=0.0,high=1.0,shape=(1,),dtype=np.float32,)
-        self.observation_space=spaces.Box(low=-np.inf,high=np.inf,shape=(4,),dtype=np.float32,)
+        self.observation_space=spaces.Box(low=-np.inf,high=np.inf,shape=(3,),dtype=np.float32,)
 
         self.lambda_inventory=0.001
         self.lambda_terminal=10.0
 
     def reset(self,seed=None,options=None):
         super().reset(seed=seed)
+        if seed is not None:
+            self.price_process._rng=np.random.default_rng(seed)
+        
         self.remaining_shares=self.total_shares
         self.current_price=self.initial_price
         self.current_step=0
@@ -87,6 +90,8 @@ class ExecutionEnv(gym.Env):
             temporary_impact=self.market_impact.temporary_impact(trade_size=self.remaining_shares,tau=tau)
             permenant_impact=self.market_impact.permanent_impact(trade_size=self.remaining_shares)
             execution_price=(self.current_price-temporary_impact-permenant_impact)
+            terminal_shortfall=(self.arrival_price-execution_price)*self.remaining_shares
+            self.total_shortfall=terminal_shortfall
             terminal_cost=(temporary_impact + permenant_impact)*self.remaining_shares
             reward-=terminal_cost
             self.remaining_shares=0
@@ -100,7 +105,6 @@ class ExecutionEnv(gym.Env):
         [
             self.current_step / self.intervals,
             self.remaining_shares / self.total_shares,
-            self.current_price / self.initial_price,
             price_change,
         ],
         dtype=np.float32,

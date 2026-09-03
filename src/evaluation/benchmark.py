@@ -11,7 +11,7 @@ def evaluate_td3(shared_market_prices,seed,verbose=False):
     env.current_price = env.market_prices[0]
     env.arrival_price = env.market_prices[0]
 
-    model=TD3.load("td3_execution_le3e_50p3")
+    model=TD3.load("td3_execution_v2_50")
     done=False
     total_reward=0.0
     actions=[]
