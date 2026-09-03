@@ -47,7 +47,6 @@ class ExecutionEnv(gym.Env):
         action = float(np.clip(action[0], 0.0, 1.0))
         shares_to_sell=int(action*self.remaining_shares)
         shares_to_sell=min(shares_to_sell,self.remaining_shares,)
-        total_shortfall=0
         self.remaining_shares -= shares_to_sell
 
         tau=self.execution_horizon/self.intervals
@@ -56,7 +55,7 @@ class ExecutionEnv(gym.Env):
         trade_price = self.current_price
         execution_price=trade_price-(temporary_impact+permenant_impact)
         implementation_shortfall=(self.arrival_price-execution_price)*shares_to_sell
-        total_shortfall += implementation_shortfall
+        self.total_shortfall += implementation_shortfall
         execution_cost = (temporary_impact + permenant_impact) * shares_to_sell
 
         alpha=1.0
@@ -74,7 +73,7 @@ class ExecutionEnv(gym.Env):
                 "execution_price": execution_price,
                 "implementation_shortfall": implementation_shortfall,
                 "current_price": trade_price,
-                "shortfall": total_shortfall,
+                "shortfall": self.total_shortfall,
                 }
 
         self.current_step+=1

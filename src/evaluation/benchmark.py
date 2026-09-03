@@ -44,7 +44,7 @@ def evaluate_td3(shared_market_prices,seed,verbose=False):
 
 
     return {
-        "reward":total_reward,"shortfall": info["total_shortfall"],"actions":actions,"remaining_inventory":env.remaining_shares,
+        "reward":total_reward,"shortfall": info["shortfall"],"actions":actions,"remaining_inventory":env.remaining_shares,
     }
 
 def evaluate_almgren(shared_market_prices,seed,verbose=False):
