@@ -40,13 +40,14 @@ class ExecutionEnv(gym.Env):
         self.market_prices=self.price_process.generate_path(initial_price=self.initial_price,sigma=self.sigma,intervals=self.intervals,tau=tau)
         self.current_price = self.market_prices[0]
         self.arrival_price=self.current_price
+        self.total_shortfall = 0
         return self._get_observation(),{}
 
     def step(self,action):
         action = float(np.clip(action[0], 0.0, 1.0))
         shares_to_sell=int(action*self.remaining_shares)
         shares_to_sell=min(shares_to_sell,self.remaining_shares,)
-
+        total_shortfall=0
         self.remaining_shares -= shares_to_sell
 
         tau=self.execution_horizon/self.intervals
@@ -55,14 +56,25 @@ class ExecutionEnv(gym.Env):
         trade_price = self.current_price
         execution_price=trade_price-(temporary_impact+permenant_impact)
         implementation_shortfall=(self.arrival_price-execution_price)*shares_to_sell
+        total_shortfall += implementation_shortfall
+        execution_cost = (temporary_impact + permenant_impact) * shares_to_sell
+
+        alpha=1.0
+        beta=100.0
+        inventory_penalty=alpha*(self.remaining_shares/self.total_shares)
+        impact_penalty=beta*(temporary_impact+permenant_impact)
         reward= -implementation_shortfall
+        reward-=inventory_penalty
+        reward-=impact_penalty
+
         info={
                 "shares_sold": shares_to_sell,
                 "temporary_impact": temporary_impact,
                 "permanent_impact": permenant_impact,
                 "execution_price": execution_price,
                 "implementation_shortfall": implementation_shortfall,
-                "current_price": trade_price
+                "current_price": trade_price,
+                "shortfall": total_shortfall,
                 }
 
         self.current_step+=1
@@ -76,19 +88,21 @@ class ExecutionEnv(gym.Env):
             temporary_impact=self.market_impact.temporary_impact(trade_size=self.remaining_shares,tau=tau)
             permenant_impact=self.market_impact.permanent_impact(trade_size=self.remaining_shares)
             execution_price=(self.current_price-temporary_impact-permenant_impact)
-            reward-=(self.arrival_price-execution_price)*self.remaining_shares
+            terminal_cost=(temporary_impact + permenant_impact)*self.remaining_shares
+            reward-=terminal_cost
             self.remaining_shares=0
 
-        
+        reward/=100
         return self._get_observation(),reward,terminated,truncated,info
 
     def _get_observation(self):
+        price_change = (self.current_price - self.arrival_price) / self.arrival_price
         return np.array(
         [
             self.current_step / self.intervals,
             self.remaining_shares / self.total_shares,
             self.current_price / self.initial_price,
-            (self.intervals - self.current_step)/self.intervals,
+            price_change,
         ],
         dtype=np.float32,
     )

@@ -33,4 +33,4 @@ def evaluate(model_path: str, episodes: int = 5):
 
 
 if __name__ == "__main__":
-    evaluate("td3_execution_agent")
+    evaluate("td3_execution_v1_500")
