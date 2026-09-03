@@ -14,7 +14,7 @@ class MarketSimulator:
             raise ValueError("interval cant be 0")
 
         tau=execution_horizon/intervals
-        market_prices=self._price_process.generate(initial_price=initial_price,sigma=sigma,intervals=intervals,tau=tau,)
+        market_prices=self._price_process.generate_path(initial_price=initial_price,sigma=sigma,intervals=intervals,tau=tau,)
         execution_prices=[]
         inventory=[]
         cash_spent=0.0
