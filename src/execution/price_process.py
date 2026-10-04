@@ -19,10 +19,11 @@ class PriceProcess:
 
         prices = [initial_price]
         current_price = initial_price
+        mu=0.0
 
         for _ in range(intervals):
-            shock = sigma * np.sqrt(tau) * self._rng.normal()
-            current_price += shock
+            z=self._rng.normal()
+            current_price = current_price*np.exp((mu-0.5*sigma**2)*tau+sigma*np.sqrt(tau)*z)
             prices.append(current_price)
 
         return prices

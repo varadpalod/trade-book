@@ -14,7 +14,7 @@ Usage:
     python -m src.evaluation.benchmark
 """
 import numpy as np
-from stable_baselines3 import SAC, TD3
+from stable_baselines3 import SAC
 
 from src.rl.execution_env import ExecutionEnv
 from src.execution.almgren_chriss import AlmgrenChrissStrategy
@@ -53,43 +53,6 @@ def evaluate_sac(shared_market_prices: list, seed: int, verbose: bool = False) -
         obs, reward, terminated, truncated, info = env.step(action)
         if verbose:
             _print_step("SAC", step, action, info, reward)
-        total_reward += reward
-        done = terminated or truncated
-        step += 1
-
-    return {
-        "reward": total_reward,
-        "shortfall": info["shortfall"],
-        "actions": actions,
-        "remaining_inventory": env.remaining_shares,
-    }
-
-
-def evaluate_td3(shared_market_prices: list, seed: int, verbose: bool = False) -> dict:
-    """Run TD3 agent on a pre-generated price path."""
-    env = ExecutionEnv(random_seed=seed)
-    obs, _ = env.reset(seed=seed)
-    env.market_prices = shared_market_prices.copy()
-    env.current_price = env.market_prices[0]
-    env.arrival_price = env.market_prices[0]
-
-    try:
-        model = TD3.load("td3_execution_gbm1")
-    except FileNotFoundError:
-        log.warning("td3_execution_gbm1.zip not found — skipping TD3 evaluation.")
-        return {"reward": 0.0, "shortfall": 0.0, "actions": [], "remaining_inventory": env.total_shares}
-
-    done = False
-    total_reward = 0.0
-    actions = []
-    step = 1
-
-    while not done:
-        action, _ = model.predict(obs, deterministic=True)
-        actions.append(float(action[0]))
-        obs, reward, terminated, truncated, info = env.step(action)
-        if verbose:
-            _print_step("TD3", step, action, info, reward)
         total_reward += reward
         done = terminated or truncated
         step += 1
@@ -194,12 +157,11 @@ def evaluate_twap(shared_market_prices: list, seed: int, verbose: bool = False) 
 
 def compare(episodes: int = 100) -> None:
     """
-    Compare SAC vs TD3 vs AC vs TWAP across N shared market paths.
+    Compare SAC vs AC vs TWAP across N shared market paths.
     """
-    strategies = ["SAC", "TD3", "AC", "TWAP"]
+    strategies = ["SAC", "AC", "TWAP"]
     evaluators = {
         "SAC": evaluate_sac,
-        "TD3": evaluate_td3,
         "AC": evaluate_almgren,
         "TWAP": evaluate_twap,
     }
