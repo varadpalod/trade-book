@@ -300,6 +300,114 @@ class CCXTAdapter(BrokerAdapter):
 
 
 # ---------------------------------------------------------------------------
+# Dhan adapter (Indian Equities - NSE)
+# ---------------------------------------------------------------------------
+
+class DhanAdapter(BrokerAdapter):
+    """
+    Dhan API adapter for Indian Equities (NSE/BSE).
+
+    Requires: pip install dhanhq
+
+    Parameters
+    ----------
+    client_id    : Dhan Client ID
+    access_token : Dhan Access Token
+    """
+
+    def __init__(
+        self,
+        client_id: str = "YOUR_CLIENT_ID",
+        access_token: str = "YOUR_ACCESS_TOKEN",
+    ) -> None:
+        self._client_id = client_id
+        self._access_token = access_token
+        self._api = None
+
+        log.info("DhanAdapter created | client_id=%s", client_id)
+
+    def _connect(self) -> Any:
+        if self._api is not None:
+            return self._api
+
+        try:
+            from dhanhq import dhanhq
+            self._api = dhanhq(self._client_id, self._access_token)
+            log.info("Connected to Dhan API")
+        except ImportError:
+            raise ImportError("dhanhq not installed. Run: pip install dhanhq")
+
+        return self._api
+
+    def get_quote(self, symbol: str) -> MarketQuote:
+        api = self._connect()
+        # Note: True live L2 data usually requires WebSocket connection.
+        # This uses the REST API fallback if available, or assumes last traded price.
+        # 'symbol' here should be the exchange instrument mapping, e.g., '1333' for Reliance in NSE.
+        try:
+            # Dhan REST doesn't have a simple synchronous 'get quote'.
+            # We mock it via getting position or historical, but in reality 
+            # you need the Dhan WebSocket feed pumping prices to a cache.
+            # Below is a stub structure:
+            res = api.get_fund_limits() # Just a ping check in stub
+            mock_price = 100.0 # Replace with actual cache read from WebSocket
+            
+            return MarketQuote(
+                symbol=symbol, bid=mock_price, ask=mock_price, last=mock_price,
+                bid_size=0, ask_size=0, timestamp=time.time(),
+            )
+        except Exception as e:
+            log.error("Dhan get_quote failed: %s", e)
+            raise
+
+    def submit_market_order(self, symbol: str, qty: int, side: str = "sell") -> OrderResult:
+        if qty <= 0:
+            return OrderResult(
+                order_id="SKIP", symbol=symbol, qty=0, filled_qty=0,
+                avg_fill_price=0.0, status="skipped", timestamp=time.time()
+            )
+
+        api = self._connect()
+        dhan_side = api.SELL if side.lower() == "sell" else api.BUY
+        
+        order = api.place_order(
+            security_id=symbol,  # e.g., '1333' for Reliance
+            exchange_segment=api.NSE,
+            transaction_type=dhan_side,
+            quantity=qty,
+            order_type=api.MARKET,
+            product_type=api.INTRADAY,
+            price=0
+        )
+        
+        log.info("Dhan order submitted | symbol=%s, qty=%d", symbol, qty)
+        
+        # Dhan returns {'status': 'success', 'data': {'orderId': '...'}}
+        order_id = order.get('data', {}).get('orderId', 'unknown') if order.get('status') == 'success' else 'error'
+
+        return OrderResult(
+            order_id=order_id,
+            symbol=symbol,
+            qty=qty,
+            filled_qty=0, # Need to query order book via fetch for exact fills
+            avg_fill_price=0.0,
+            status=order.get('status', 'unknown'),
+            timestamp=time.time(),
+            raw=order,
+        )
+
+    def get_position(self, symbol: str) -> int:
+        api = self._connect()
+        positions = api.get_positions()
+        # Find position matching symbol
+        if positions.get('status') == 'success':
+            for pos in positions.get('data', []):
+                if pos.get('securityId') == symbol:
+                    return int(pos.get('netQty', 0))
+        return 0
+
+
+# ---------------------------------------------------------------------------
 # PaperTrader — wires SAC agent + risk controls + broker adapter
 # ---------------------------------------------------------------------------
 

@@ -61,6 +61,25 @@ python -m src.market.generate_synthetic_data --ticks 10000 --output data/synthet
 
 ---
 
+## Option 4 — Indian Equities (NSE via Yahoo Finance)
+
+For Indian markets, you can download free 1-minute OHLCV data using the provided script.
+
+```bash
+# Download 7 days of 1-minute data for Reliance Industries
+python -m src.market.download_indian_data --ticker RELIANCE.NS
+
+# Or for HDFC Bank
+python -m src.market.download_indian_data --ticker HDFCBANK.NS
+```
+
+Then train the agent on the downloaded data:
+```bash
+python -m src.rl.train_sac_lob --data data/RELIANCE.NS_1m.csv --format ohlcv
+```
+
+---
+
 ## .gitignore
 
 Large data files are excluded from git. Add to `.gitignore`:
