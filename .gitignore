@@ -71,3 +71,10 @@ checkpoints/
 # -----------------------------
 *.tmp
 *.bak
+# -----------------------------
+# Large market data (download/generate locally, see data/README.md)
+# -----------------------------
+data/*.csv
+data_generated/
+raw/
+logs/

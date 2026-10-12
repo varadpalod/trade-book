@@ -38,6 +38,11 @@ log = get_logger(__name__)
 # Window size for rolling volatility signal
 _VOL_WINDOW = 5
 
+# sigma in EnvConfig is an ANNUALISED volatility (0.5 = 50%/yr), but tau is in SECONDS.
+# Using sigma directly per sqrt(second) made the simulated price crash ~99% every episode
+# (so any "sell early" policy looked brilliant). Convert once, here.
+_TRADING_SECONDS_PER_YEAR = 252 * 6.5 * 3600
+
 
 class ExecutionEnv(gym.Env):
     metadata = {"render_modes": []}
@@ -124,7 +129,7 @@ class ExecutionEnv(gym.Env):
         tau = self.execution_horizon / self.intervals
         self.market_prices = self.price_process.generate_path(
             initial_price=self.initial_price,
-            sigma=self.sigma,
+            sigma=self.sigma / np.sqrt(_TRADING_SECONDS_PER_YEAR),  # annualised -> per-sqrt(second)
             intervals=self.intervals,
             tau=tau,
         )
@@ -220,10 +225,13 @@ class ExecutionEnv(gym.Env):
                 ) / self.arrival_price
             else:
                 terminal_shortfall = 0.0
-            self.total_shortfall = terminal_shortfall
+            # was `=` (overwrote earlier costs) and never reached info["shortfall"], so unsold
+            # inventory was never charged. Accumulate and publish it.
+            self.total_shortfall += terminal_shortfall
             terminal_cost = (temporary_impact + permanent_impact) * self.remaining_shares
             reward -= terminal_cost / (self._reward_scale * self.arrival_price)
             self.remaining_shares = 0
+            info["shortfall"] = self.total_shortfall
 
         log.debug(
             "Step %d | action=%.3f, sold=%d, reward=%.5f, remaining=%d, sigma=%.3f",
