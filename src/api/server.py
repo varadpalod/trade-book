@@ -7,13 +7,8 @@ import numpy as np
 
 from stable_baselines3 import SAC
 from src.market.multi_asset_replay import MultiAssetReplay
-from src.rl.execution_env_multi import ExecutionEnvMulti
-from src.api.explain import (
-    FeatureInfluence,
-    describe_decision,
-    realistic_cost_bps,
-    baseline_curves,
-)
+from src.rl.execution_env_v2 import ExecutionEnvV2
+from src.api.explain import FeatureInfluence, describe_decision, realistic_cost_bps
 
 app = FastAPI(title="Trade Book Execution API")
 
@@ -25,6 +20,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+ENGINE = "v2"       # realistic-cost env + retrained model (the only engine now)
+TICK_DELAY = 0.5    # seconds between ticks, for a watchable UI
 is_killed = False
 clients = []
 rl_model = None
@@ -60,10 +57,10 @@ async def broadcast(message: dict):
             pass
 
 def _make_env(seed=None):
-    return ExecutionEnvMulti(
+    return ExecutionEnvV2(
         multi_replay=multi_replay,
         random_seed=np.random.randint(0, 100000) if seed is None else seed,
-        cancel_after_steps=1,
+        split="eval",  # held-out period the model never trained on
     )
 
 async def execution_engine_loop():
@@ -76,10 +73,14 @@ async def execution_engine_loop():
 
     # 2. Load the trained SAC Model
     print("Loading Trained SAC Model weights...")
-    try:
-        rl_model = SAC.load("sac_multi_best/best_model.zip")
-    except Exception as e:
-        print(f"Failed to load model: {e}")
+    for path in ("sac_real.zip", "sac_v2.zip"):
+        try:
+            rl_model = SAC.load(path)
+            print(f"Loaded {path}")
+            break
+        except Exception as e:
+            print(f"Could not load {path}: {e}")
+    if rl_model is None:
         return
 
     # 3. Calibrate the "why did it do that" explainer on the model's own rollouts
@@ -96,8 +97,7 @@ async def execution_engine_loop():
         env = _make_env()
         obs, _ = env.reset()
 
-        snapshots = env._episode_snapshots
-        baselines = baseline_curves(snapshots, env.arrival_price, env.total_shares, env.intervals)
+        baselines = {"twap": env.twap_bps_curve, "dump": [env.dump_bps] * env.intervals}
 
         await broadcast({
             "type": "INIT",
@@ -107,6 +107,7 @@ async def execution_engine_loop():
                 "symbol": env.current_symbol,
                 "intervals": env.intervals,
                 "baselines": baselines,
+                "engine": ENGINE,
             }
         })
         await asyncio.sleep(1.0) # Pause before starting episode
@@ -138,19 +139,11 @@ async def execution_engine_loop():
             done = terminated or truncated
 
             # --- Work out what actually executed this tick (market + limit + final cleanup) ---
-            total_exec = env.filled_shares - prev_filled
             prev_filled = env.filled_shares
             limit_filled = int(info.get("filled_qty", 0))
-            market_filled = attempted if info.get("order_type") == "market" else 0
-            cleanup = max(0, total_exec - limit_filled - market_filled)
-
-            tick_fills = []
-            if market_filled > 0:
-                tick_fills.append((market_filled, snap.bid_price))
-            if limit_filled > 0:
-                tick_fills.append((limit_filled, info.get("limit_price", snap.mid_price)))
-            if cleanup > 0 and env._current_snapshot is not None:
-                tick_fills.append((cleanup, env._current_snapshot.bid_price))
+            tick_fills = list(info["fills"])           # exact fills, including impact
+            market_filled = int(info["market_filled"])
+            cleanup = int(info["cleanup"])
             fills.extend(tick_fills)
 
             if decision["kind"] == "market":
@@ -195,7 +188,7 @@ async def execution_engine_loop():
                 }
             }
             await broadcast(state)
-            await asyncio.sleep(1.5) # slower tick for visual UI
+            await asyncio.sleep(TICK_DELAY) # slower tick for visual UI
 
         if not is_killed:
             n_ticks = max(n_market + n_limit + n_hold, 1)
